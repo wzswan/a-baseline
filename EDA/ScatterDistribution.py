@@ -1,0 +1,6 @@
+plt.figure(figsize=(8,8))
+sns.jointplot(x=train_df["feature"].values, y=train_df["target"].values, size=10)
+plt.ylabel('target', fontsize=12)
+plt.xlabel('feature', fontsize=12)
+plt.title("feature vs target", fontsize=15)
+plt.show()

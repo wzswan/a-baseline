@@ -1,0 +1,7 @@
+plt.figure(figsize=(12,8))
+sns.boxplot(x="category", y="target", data=train_df)
+plt.ylabel('target', fontsize=12)
+plt.xlabel('Category', fontsize=12)
+plt.title("target by  category", fontsize=14)
+plt.xticks(rotation='vertical')
+plt.show()

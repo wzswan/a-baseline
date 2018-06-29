@@ -1,0 +1,6 @@
+plt.figure(figsize=(8,6))
+plt.scatter(range(train_df.shape[0]), np.sort(train_df['feature'].values))
+plt.xlabel('index', fontsize=12)
+plt.ylabel('target', fontsize=12)
+plt.title("target / feature Distribution", fontsize=14)
+plt.show()
