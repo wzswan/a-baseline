@@ -33,6 +33,62 @@ import lightgbm as lgb
 from sklearn.linear_model import Ridge
 from sklearn.cross_validation import KFold
 
+NFOLDS = 5
+SEED = 42
+
+if os.path.exists("../tmp/oof_index.dat"):
+    with open("../tmp/oof_index.dat", "rb") as f:
+        kfolds = dill.load(f)
+else:
+    dftrain_tmp = pd.read_csv("../input/train.csv")
+    fold = KFold(n_splits=5, shuffle=True, random_state=1234)
+    kfolds = list(fold.split(dftrain_tmp))
+    with open("../tmp/oof_index.dat", "wb") as f:
+        dill.dump(kfolds, f)
+    del dftrain_tmp; gc.collect()
+
+print("Creating Ridge Features...")
+class SklearnWrapper(object):
+    def __init__(self, clf, seed=0, params=None, seed_bool = True):
+        if(seed_bool == True):
+            params['random_state'] = seed
+        self.clf = clf(**params)
+
+    def train(self, x_train, y_train):
+        self.clf.fit(x_train, y_train)
+
+    def predict(self, x):
+        return self.clf.predict(x)
+
+def get_oof(clf, x_train, y, x_test):
+    oof_train = np.zeros((ntrain,))
+    oof_test = np.zeros((ntest,))
+    oof_test_skf = np.empty((NFOLDS, ntest))
+
+    for i, (train_index, test_index) in enumerate(kfolds):
+        print('\nFold {}'.format(i))
+        x_tr = x_train[train_index]
+        y_tr = y[train_index]
+        x_te = x_train[test_index]
+
+        clf.train(x_tr, y_tr)
+
+        oof_train[test_index] = clf.predict(x_te)
+        oof_test_skf[i, :] = clf.predict(x_test)
+
+    oof_test[:] = oof_test_skf.mean(axis=0)
+    return oof_train.reshape(-1, 1), oof_test.reshape(-1, 1)
+
+
+from sklearn.metrics import mean_squared_error
+from math import sqrt
+
+ridge_params = {'alpha':25.0, 'fit_intercept':True, 'normalize':False, 'copy_X':True,
+                'max_iter':None, 'tol':0.001, 'solver':'auto', 'random_state':SEED}
+
+
+
+
 
 print("\nData Load Stage")
 train_df = pd.read_csv("../input/train.csv")
@@ -207,8 +263,14 @@ print('save into csv file')
 #total_df.to_csv("total_df.csv", index=False)
 pca_df_all.to_csv("pca_df_all.csv", index=False)
 
-X = df.loc[traindex,:].values
-test_df = df.loc[testdex,:].values
+ridge = SklearnWrapper(clf=Ridge, seed = SEED, params = ridge_params)
+ridge_oof_train, ridge_oof_test = get_oof(ridge, pca_df_all[:ntrain], y, pca_df_all[ntrain:])
+X = pd.DataFrame(ridge_oof_train)
+test_df = pd.DataFrame(ridge_oof_test)
+
+
+#X = df.loc[traindex,:].values
+#test_df = df.loc[testdex,:].values
 
 for shape in [X,test_df]:
     print("{} Rows and {} Cols".format(*shape.shape))
